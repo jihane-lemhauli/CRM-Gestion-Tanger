@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>CRM Tanger - Static Preview</title>
+    <style>
+        body { font-family: sans-serif; background: #eef2f6; display: flex; justify-content: center; padding: 50px; }
+        .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 500px; }
+        input { width: 70%; padding: 10px; border-radius: 10px; border: 1px solid #ccc; }
+        button { padding: 10px; border-radius: 10px; background: #2563eb; color: white; border: none; cursor: pointer; }
+        .card { display: none; margin-top: 20px; border-top: 5px solid #2563eb; padding: 20px; background: #f8fafc; border-radius: 10px; }
+        .val { font-size: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>🏙️ CRM Tanger Pro (Static)</h2>
+    <input type="text" id="name" placeholder="Tapez 'Sani'...">
+    <button onclick="search()">Chercher</button>
+    <div id="card" class="card">
+        <h3 id="cName"></h3>
+        <p>Total: <span id="cTotal" class="val"></span> DH</p>
+        <p style="color: #f59e0b;">Attente: <span id="cAttente" class="val"></span> DH</p>
+        <hr>
+        <p id="cDetail"></p>
+    </div>
+</div>
+<script>
+    const data = [
+        {nom: "Sani Tanger Sarl", total: "37,000", attente: "22,000", detail: "Tél: 0539301020 | Type: PME"},
+        {nom: "Ahmed El Amrani", total: "2,500", attente: "2,500", detail: "Tél: 0661223344 | Type: Particulier"}
+    ];
+    function search() {
+        const val = document.getElementById('name').value.toLowerCase();
+        const res = data.find(c => c.nom.toLowerCase().includes(val));
+        if(res) {
+            document.getElementById('cName').innerText = res.nom;
+            document.getElementById('cTotal').innerText = res.total;
+            document.getElementById('cAttente').innerText = res.attente;
+            document.getElementById('cDetail').innerText = res.detail;
+            document.getElementById('card').style.display = 'block';
+        } else { alert("Non trouvé!"); }
+    }
+</script>
+</body>
+</html>
