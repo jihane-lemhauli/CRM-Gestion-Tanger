@@ -1,58 +1,49 @@
 import streamlit as st
-import mysql.connector
+import sqlite3
 import pandas as pd
 
 # ---------------------------------------------------------
-# 1️⃣ CONFIGURATION DE LA PAGE (DOIT ÊTRE LE PREMIER ÉLÉMENT)
+# 1️⃣ CONFIGURATION DE LA PAGE
 # ---------------------------------------------------------
 st.set_page_config(page_title="CRM Tanger Pro", layout="wide")
 
+# ---------------------------------------------------------
+# 2️⃣ CONNEXION À LA BASE DE DONNÉES (SQLite pour le Cloud)
+# ---------------------------------------------------------
+def obtenir_connexion():
+    try:
+        # Connexion au fichier local database.db
+        return sqlite3.connect('database.db', check_same_thread=False)
+    except Exception as e:
+        st.error(f"Erreur de connexion à la base de données : {e}")
+        return None
+
 # -------------------------
-# 2️⃣ AUTHENTIFICATION SIMPLE
+# 3️⃣ AUTHENTIFICATION
 # -------------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 def check_login(username, password):
-    # يمكنك تغيير "admin" و "pass1234" بما تريد
     return username == "admin" and password == "pass1234"
 
-# شاشة تسجيل الدخول
 if not st.session_state.logged_in:
     st.markdown("<h2 style='text-align: center; color: #1e3a8a;'>🔐 Connexion au Système CRM</h2>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        with st.container():
-            user = st.text_input("Nom d'utilisateur")
-            pwd = st.text_input("Mot de passe", type="password")
-            if st.button("Se connecter", use_container_width=True):
-                if check_login(user, pwd):
-                    st.session_state.logged_in = True
-                    st.rerun()  # إعادة تشغيل الكود للدخول للوحة التحكم
-                else:
-                    st.error("⚠️ Identifiants incorrects")
-    st.stop() # توقف الكود هنا إذا لم يتم تسجيل الدخول
+        user = st.text_input("Nom d'utilisateur")
+        pwd = st.text_input("Mot de passe", type="password")
+        if st.button("Se connecter", use_container_width=True):
+            if check_login(user, pwd):
+                st.session_state.logged_in = True
+                st.rerun()
+            else:
+                st.error("⚠️ Identifiants incorrects")
+    st.stop()
 
 # -------------------------
-# 3️⃣ CONNEXION MYSQL
-# -------------------------
-def obtenir_connexion():
-    try:
-        return mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="jihanejiji",
-            database="GestionClients_Tanger",
-            port=3306,
-            auth_plugin='mysql_native_password'
-        )
-    except mysql.connector.Error as err:
-        st.error(f"Erreur de connexion SQL : {err}")
-        return None
-
-# -------------------------
-# 4️⃣ DESIGN CSS & BACKGROUND
+# 4️⃣ DESIGN CSS
 # -------------------------
 st.markdown("""
 <style>
@@ -67,7 +58,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# زر تسجيل الخروج
 if st.sidebar.button("🚪 Déconnexion"):
     st.session_state.logged_in = False
     st.rerun()
@@ -75,7 +65,7 @@ if st.sidebar.button("🚪 Déconnexion"):
 st.title("🏙️ CRM : Gestion des Clients - Tanger")
 
 # ---------------------------------------------------------
-# 5️⃣ CHARGER LA LISTE DES CLIENTS (POUR SELECTBOX)
+# 5️⃣ CHARGER LA LISTE DES CLIENTS
 # ---------------------------------------------------------
 conn = obtenir_connexion()
 clients_list = []
@@ -87,7 +77,7 @@ if conn:
         conn.close()
 
 # ---------------------------------------------------------
-# 6️⃣ RECHERCHE ET AFFICHAGE (TABLEAU DE BORD)
+# 6️⃣ RECHERCHE ET AFFICHAGE
 # ---------------------------------------------------------
 st.subheader("🔍 Consultation Rapide")
 nom_recherche = st.selectbox("Sélectionnez un client :", options=[""] + clients_list)
@@ -96,13 +86,14 @@ if nom_recherche != "":
     conn = obtenir_connexion()
     if conn:
         try:
+            # Note: SQLite utilise '?' au lieu de '%s'
             requete = """
             SELECT c.*, 
-                   COALESCE(SUM(f.montant),0) AS total_ventes,
-                   COALESCE(SUM(CASE WHEN f.statut='En attente' THEN f.montant ELSE 0 END),0) AS montant_en_attente
+                   COALESCE(SUM(f.montant), 0) AS total_ventes,
+                   COALESCE(SUM(CASE WHEN f.statut='En attente' THEN f.montant ELSE 0 END), 0) AS montant_en_attente
             FROM Clients c
-            LEFT JOIN Factures f ON c.nom_client=f.nom_client_ref
-            WHERE c.nom_client=%s
+            LEFT JOIN Factures f ON c.nom_client = f.nom_client_ref
+            WHERE c.nom_client = ?
             GROUP BY c.id_client;
             """
             df = pd.read_sql(requete, conn, params=(nom_recherche,))
@@ -152,10 +143,11 @@ with st.form("form_ajout", clear_on_submit=True):
             if conn:
                 try:
                     cursor = conn.cursor()
-                    cursor.execute("INSERT INTO Clients (nom_client, telephone, email, type_client, adresse) VALUES (%s,%s,%s,%s,%s)",
+                    cursor.execute("INSERT INTO Clients (nom_client, telephone, email, type_client, adresse) VALUES (?,?,?,?,?)",
                                    (new_nom, new_tel, new_email, new_type, new_adr))
                     conn.commit()
-                    st.success(f"✅ {new_nom} ajouté ! Actualisez pour voir dans la liste.")
+                    st.success(f"✅ {new_nom} ajouté avec succès !")
+                    st.rerun()
                 except Exception as e: st.error(e)
                 finally: conn.close()
         else: st.warning("Le nom est obligatoire.")
@@ -172,8 +164,9 @@ if nom_cible != "":
     conn = obtenir_connexion()
     if conn:
         try:
-            cursor = conn.cursor(dictionary=True)
-            cursor.execute("SELECT * FROM Clients WHERE nom_client=%s", (nom_cible,))
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM Clients WHERE nom_client = ?", (nom_cible,))
             c = cursor.fetchone()
             if c:
                 with st.form("form_edit"):
@@ -185,16 +178,16 @@ if nom_cible != "":
                     
                     col_b1, col_b2 = st.columns(2)
                     if col_b1.form_submit_button("💾 Sauvegarder"):
-                        cursor.execute("UPDATE Clients SET nom_client=%s, telephone=%s, email=%s, adresse=%s WHERE id_client=%s",
+                        cursor.execute("UPDATE Clients SET nom_client=?, telephone=?, email=?, adresse=? WHERE id_client=?",
                                        (n_nom, n_tel, n_mail, n_adr, c['id_client']))
                         conn.commit()
-                        st.success("Modifié !")
+                        st.success("Modifications enregistrées !")
                         st.rerun()
                     
                     if col_b2.form_submit_button("🗑️ Supprimer"):
-                        cursor.execute("DELETE FROM Clients WHERE id_client=%s", (c['id_client'],))
+                        cursor.execute("DELETE FROM Clients WHERE id_client=?", (c['id_client'],))
                         conn.commit()
-                        st.warning("Supprimé !")
+                        st.warning("Client supprimé !")
                         st.rerun()
         finally:
             conn.close()
