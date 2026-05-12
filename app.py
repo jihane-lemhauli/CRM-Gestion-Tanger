@@ -54,6 +54,11 @@ st.markdown("""
 }
 .titre-metric { color: #64748b; font-size: 14px; font-weight: bold; text-transform: uppercase; }
 .valeur-metric { font-size: 28px; font-weight: bold; color: #1e293b; }
+/* Style pour la liste horizontale des noms */
+.noms-ticker {
+    background: #1e3a8a; color: white; padding: 10px; border-radius: 8px;
+    margin-bottom: 20px; font-weight: bold; overflow-x: auto; white-space: nowrap;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -64,7 +69,7 @@ if st.sidebar.button("🚪 Déconnexion"):
 st.title("🏙️ CRM : Gestion des Clients - Tanger")
 
 # ---------------------------------------------------------
-# 5️⃣ CHARGER LA LISTE POUR LES MENUS DÉROULANTS
+# 5️⃣ CHARGER LA LISTE DES CLIENTS
 # ---------------------------------------------------------
 conn = obtenir_connexion()
 clients_list = []
@@ -76,6 +81,17 @@ if conn:
         pass
     finally:
         conn.close()
+
+# ---------------------------------------------------------
+# 🌟 NOUVEAU : LISTE DES NOMS EN HAUT (Aperçu rapide)
+# ---------------------------------------------------------
+if clients_list:
+    noms_str = "  •  ".join(clients_list)
+    st.markdown(f"""
+    <div class="noms-ticker">
+        👥 Clients enregistrés : &nbsp;&nbsp; {noms_str}
+    </div>
+    """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # 6️⃣ RECHERCHE ET AFFICHAGE INDIVIDUEL
@@ -124,7 +140,7 @@ if nom_recherche != "":
 st.divider()
 
 # ---------------------------------------------------------
-# 6️⃣ BIS : LISTE COMPLÈTE DES CLIENTS 
+# 6️⃣ BIS : TABLEAU COMPLET 
 # ---------------------------------------------------------
 st.subheader("📋 Répertoire Global des Clients")
 
@@ -143,13 +159,10 @@ if conn:
         df_all = pd.read_sql(query_all, conn)
         
         if not df_all.empty:
-            # Affichage du tableau complet
             st.dataframe(df_all, use_container_width=True, hide_index=True)
-            st.info(f"💡 Total : {len(df_all)} clients enregistrés dans le système.")
+            st.info(f"💡 Total : {len(df_all)} clients enregistrés.")
         else:
             st.warning("Aucun client n'est enregistré pour le moment.")
-    except Exception as e:
-        st.error(f"Erreur lors de l'affichage de la liste : {e}")
     finally:
         conn.close()
 
