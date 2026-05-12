@@ -8,11 +8,10 @@ import pandas as pd
 st.set_page_config(page_title="CRM Tanger Pro", layout="wide")
 
 # ---------------------------------------------------------
-# 2️⃣ CONNEXION À LA BASE DE DONNÉES (SQLite pour le Cloud)
+# 2️⃣ CONNEXION À LA BASE DE DONNÉES
 # ---------------------------------------------------------
 def obtenir_connexion():
     try:
-        # Connexion au fichier local database.db
         return sqlite3.connect('database.db', check_same_thread=False)
     except Exception as e:
         st.error(f"Erreur de connexion à la base de données : {e}")
@@ -65,7 +64,7 @@ if st.sidebar.button("🚪 Déconnexion"):
 st.title("🏙️ CRM : Gestion des Clients - Tanger")
 
 # ---------------------------------------------------------
-# 5️⃣ CHARGER LA LISTE DES CLIENTS
+# 5️⃣ CHARGER LA LISTE POUR LES MENUS DÉROULANTS
 # ---------------------------------------------------------
 conn = obtenir_connexion()
 clients_list = []
@@ -73,20 +72,21 @@ if conn:
     try:
         df_list = pd.read_sql("SELECT nom_client FROM Clients ORDER BY nom_client ASC", conn)
         clients_list = df_list['nom_client'].tolist()
+    except:
+        pass
     finally:
         conn.close()
 
 # ---------------------------------------------------------
-# 6️⃣ RECHERCHE ET AFFICHAGE
+# 6️⃣ RECHERCHE ET AFFICHAGE INDIVIDUEL
 # ---------------------------------------------------------
 st.subheader("🔍 Consultation Rapide")
-nom_recherche = st.selectbox("Sélectionnez un client :", options=[""] + clients_list)
+nom_recherche = st.selectbox("Sélectionnez un client pour voir les détails :", options=[""] + clients_list)
 
 if nom_recherche != "":
     conn = obtenir_connexion()
     if conn:
         try:
-            # Note: SQLite utilise '?' au lieu de '%s'
             requete = """
             SELECT c.*, 
                    COALESCE(SUM(f.montant), 0) AS total_ventes,
@@ -120,6 +120,38 @@ if nom_recherche != "":
                 """, unsafe_allow_html=True)
         finally:
             conn.close()
+
+st.divider()
+
+# ---------------------------------------------------------
+# 6️⃣ BIS : LISTE COMPLÈTE DES CLIENTS 
+# ---------------------------------------------------------
+st.subheader("📋 Répertoire Global des Clients")
+
+conn = obtenir_connexion()
+if conn:
+    try:
+        query_all = """
+        SELECT nom_client AS [Nom], 
+               telephone AS [Téléphone], 
+               email AS [Email], 
+               type_client AS [Type], 
+               adresse AS [Adresse] 
+        FROM Clients 
+        ORDER BY nom_client ASC
+        """
+        df_all = pd.read_sql(query_all, conn)
+        
+        if not df_all.empty:
+            # Affichage du tableau complet
+            st.dataframe(df_all, use_container_width=True, hide_index=True)
+            st.info(f"💡 Total : {len(df_all)} clients enregistrés dans le système.")
+        else:
+            st.warning("Aucun client n'est enregistré pour le moment.")
+    except Exception as e:
+        st.error(f"Erreur lors de l'affichage de la liste : {e}")
+    finally:
+        conn.close()
 
 st.divider()
 
