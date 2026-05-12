@@ -24,7 +24,7 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    st.markdown("<h2 style='text-align: center; color: #1e3a8a;'>🔐 Connexion au Système CRM</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #1e3a8a;'>🔐 Connexion au Système ERP</h2>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         user = st.text_input("Nom d'utilisateur")
@@ -41,12 +41,12 @@ if not st.session_state.logged_in:
 # 4️⃣ CHARGEMENT DES DONNÉES
 # -------------------------
 conn = obtenir_connexion()
-clients_list = ["Tous"]
+clients_list = ["Tous les clients"]
 df_inventaire = pd.DataFrame()
 
 if conn:
     try:
-        # Récupérer les noms des clients pour le filtre
+        # Récupérer les noms des clients pour le filtre latéral
         df_c = pd.read_sql("SELECT DISTINCT nom_client FROM Clients ORDER BY nom_client ASC", conn)
         clients_list += df_c['nom_client'].tolist()
         
@@ -58,11 +58,11 @@ if conn:
         conn.close()
 
 # -------------------------
-# 5️⃣ SIDEBAR (FILTRES DE RECHERCHE)
+# 5️⃣ BARRE LATÉRALE (FILTRES)
 # -------------------------
 st.sidebar.title("🔍 Filtres de recherche")
 
-# HADA HOWA L-BEDIL : rj3na "Filtrer par Client" f blast Shipment
+# Remplacement du filtre Shipment par la Liste des Clients
 client_filtre = st.sidebar.selectbox("Filtrer par Client", options=clients_list)
 
 statut_filtre = st.sidebar.selectbox("Filtrer par Statut", options=["Tous", "En cours", "Livré", "En attente"])
@@ -80,24 +80,27 @@ st.title("📦 Gestion de l'inventaire")
 df_affichage = df_inventaire.copy()
 
 if not df_affichage.empty:
-    # Filtre par Client
-    if client_filtre != "Tous":
+    # Filtrer par le client sélectionné dans la barre latérale
+    if client_filtre != "Tous les clients":
+        # On utilise la colonne 'client_concerne' pour faire la correspondance
         df_affichage = df_affichage[df_affichage['client_concerne'] == client_filtre]
     
-    # Filtre par Statut (si la colonne existe)
+    # Filtre par Statut (si la colonne existe dans votre table)
     if statut_filtre != "Tous" and 'statut' in df_affichage.columns:
         df_affichage = df_affichage[df_affichage['statut'] == statut_filtre]
 
     st.write(f"Affichage de **{len(df_affichage)}** lignes après filtrage.")
+    
+    # Affichage du tableau final
     st.dataframe(df_affichage, use_container_width=True, hide_index=True)
 else:
     st.info("Aucune donnée d'inventaire disponible.")
 
 st.divider()
 
-# 8️⃣ BOUTONS D'ACTION (B7AL L-IMAGE)
+# 8️⃣ BOUTONS D'ACTION
 c1, c2 = st.columns(2)
 with c1:
-    st.button("💾 Sauvegarder direct f Excel", use_container_width=True)
+    st.button("💾 Sauvegarder directement sur Excel", use_container_width=True)
 with c2:
-    st.button("📩 Télécharger une copie (Backup)", use_container_width=True)
+    st.button("📩 Télécharger une copie de sauvegarde (Backup)", use_container_width=True)
