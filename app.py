@@ -5,20 +5,21 @@ import pandas as pd
 # ---------------------------------------------------------
 # 1️⃣ CONFIGURATION DE LA PAGE
 # ---------------------------------------------------------
-st.set_page_config(page_title="ERP Solaire - Gestion Pro", layout="wide")
+st.set_page_config(page_title="ERP Solaire - Gestion de l'inventaire", layout="wide")
 
 # ---------------------------------------------------------
 # 2️⃣ CONNEXION À LA BASE DE DONNÉES
 # ---------------------------------------------------------
 def obtenir_connexion():
     try:
+        # Connexion au fichier database.db
         return sqlite3.connect('database.db', check_same_thread=False)
     except Exception as e:
         st.error(f"Erreur de connexion : {e}")
         return None
 
 # -------------------------
-# 3️⃣ AUTHENTIFICATION
+# 3️⃣ AUTHENTIFICATION (Section 3)
 # -------------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -46,11 +47,6 @@ if not st.session_state.logged_in:
 st.markdown("""
 <style>
 .stApp { background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); }
-.carte-client {
-    background: white; padding: 30px; border-radius: 15px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-    border-top: 5px solid #2563eb; margin-top: 20px; color: #1e293b;
-}
 .noms-ticker {
     background: #1e3a8a; color: white; padding: 10px; border-radius: 8px;
     margin-bottom: 20px; font-weight: bold; overflow-x: auto; white-space: nowrap;
@@ -63,18 +59,19 @@ if st.sidebar.button("🚪 Déconnexion"):
     st.rerun()
 
 # ---------------------------------------------------------
-# 5️⃣ CHARGEMENT DES DONNÉES
+# 5️⃣ CHARGEMENT DES DONNÉES (Section 5)
 # ---------------------------------------------------------
 conn = obtenir_connexion()
-clients_list = []
+clients_options = ["Tous les clients"]
 df_inventaire = pd.DataFrame()
 
 if conn:
     try:
-        # Liste des clients pour le menu et le ticker
-        df_c = pd.read_sql("SELECT nom_client FROM Clients ORDER BY nom_client ASC", conn)
-        clients_list = df_c['nom_client'].tolist()
-        # Données inventaire
+        # Récupérer les noms des clients pour la liste de filtrage
+        df_c = pd.read_sql("SELECT DISTINCT nom_client FROM Clients ORDER BY nom_client ASC", conn)
+        clients_options += df_c['nom_client'].tolist()
+        
+        # Récupérer toutes les données de l'inventaire
         df_inventaire = pd.read_sql("SELECT * FROM Inventaire", conn)
     except:
         pass
@@ -82,69 +79,48 @@ if conn:
         conn.close()
 
 # ---------------------------------------------------------
-# 6️⃣ INTERFACE PRINCIPALE
+# 6️⃣ INTERFACE PRINCIPALE (Aperçu Ticker)
 # ---------------------------------------------------------
-st.title("🏙️ ERP Solaire : Gestion & Inventaire")
+st.title("🏙️ ERP Solaire : Gestion de l'inventaire")
 
-# Ticker des noms en haut
-if clients_list:
-    noms_str = "  •  ".join(clients_list)
-    st.markdown(f'<div class="noms-ticker">👥 Clients : &nbsp;&nbsp; {noms_str}</div>', unsafe_allow_html=True)
+# Ticker rapide en haut pour la visibilité
+if len(clients_options) > 1:
+    noms_str = "  •  ".join(clients_options[1:])
+    st.markdown(f'<div class="noms-ticker">👥 Clients Actifs : &nbsp;&nbsp; {noms_str}</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 7️⃣ GESTION DE L'INVENTAIRE AVEC FILTRAGE (TABS)
+# 7️⃣ FILTRE PAR LISTE DE CLIENT (La partie que tu voulais)
 # ---------------------------------------------------------
-st.subheader("📦 Gestion de l'inventaire")
-tabs_list = ["Tous"] + clients_list
-tabs = st.tabs(tabs_list)
+# Had l-selectbox hiya "Liste de client" li t-cliqui 3liha
+client_selectionne = st.selectbox(
+    "📂 Liste de client", 
+    options=clients_options,
+    help="Sélectionnez un client pour filtrer l'inventaire ci-dessous"
+)
 
-for i, tab in enumerate(tabs):
-    with tab:
-        selection = tabs_list[i]
-        if selection == "Tous":
-            df_filtre = df_inventaire
-        else:
-            # On filtre par le nom du client (colonne 'client_concerne')
-            df_filtre = df_inventaire[df_inventaire['client_concerne'] == selection] if not df_inventaire.empty else pd.DataFrame()
-        
-        st.write(f"Affichage de **{len(df_filtre)}** lignes après filtrage.")
-        st.dataframe(df_filtre, use_container_width=True, hide_index=True)
+# ---------------------------------------------------------
+# 8️⃣ AFFICHAGE DE L'INVENTAIRE FILTRÉ (Section 6)
+# ---------------------------------------------------------
+if not df_inventaire.empty:
+    if client_selectionne != "Tous les clients":
+        # Filtrage dynamique par la colonne client_concerne
+        df_filtre = df_inventaire[df_inventaire['client_concerne'] == client_selectionne]
+    else:
+        df_filtre = df_inventaire
+
+    st.write(f"Affichage de **{len(df_filtre)}** lignes après filtrage.")
+    st.dataframe(df_filtre, use_container_width=True, hide_index=True)
+else:
+    st.info("Aucune donnée d'inventaire disponible.")
 
 st.divider()
 
 # ---------------------------------------------------------
-# 8️⃣ AJOUTER / MODIFIER UN CLIENT
+# 9️⃣ ACTIONS (Boutons en bas b7al image_8f4f80.jpg)
 # ---------------------------------------------------------
-st.subheader("➕ Ajouter un nouveau client")
-with st.form("form_ajout", clear_on_submit=True):
-    c1, c2 = st.columns(2)
-    with c1:
-        new_nom = st.text_input("Nom du client")
-        new_tel = st.text_input("Téléphone")
-    with c2:
-        new_email = st.text_input("Email")
-        new_type = st.selectbox("Type", ["PME", "Particulier", "Grande Entreprise", "Commune"])
-    new_adr = st.text_area("Adresse")
-    
-    if st.form_submit_button("Enregistrer le client"):
-        if new_nom:
-            conn = obtenir_connexion()
-            if conn:
-                try:
-                    cursor = conn.cursor()
-                    cursor.execute("INSERT INTO Clients (nom_client, telephone, email, type_client, adresse) VALUES (?,?,?,?,?)",
-                                   (new_nom, new_tel, new_email, new_type, new_adr))
-                    conn.commit()
-                    st.success(f"✅ {new_nom} ajouté !")
-                    st.rerun()
-                finally: conn.close()
-        else: st.warning("Le nom est obligatoire.")
-
-# ---------------------------------------------------------
-# 9️⃣ BOUTONS D'ACTION (BACKUP/EXCEL)
-# ---------------------------------------------------------
-col_btn1, col_btn2 = st.columns(2)
-with col_btn1:
-    st.button("💾 Sauvegarder direct f Excel")
-with col_btn2:
-    st.button("📩 Télécharger une copie (Backup)")
+c1, c2 = st.columns(2)
+with c1:
+    if st.button("💾 Sauvegarder direct f Excel", use_container_width=True):
+        st.success("Exportation simulée avec succès !")
+with c2:
+    st.button("📩 Télécharger une copie (Backup)", use_container_width=True)
