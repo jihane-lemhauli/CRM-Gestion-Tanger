@@ -5,7 +5,7 @@ import pandas as pd
 # ---------------------------------------------------------
 # 1️⃣ CONFIGURATION DE LA PAGE
 # ---------------------------------------------------------
-st.set_page_config(page_title="ERP Solaire - Inventaire Pro", layout="wide")
+st.set_page_config(page_title="ERP Solaire - Gestion de l'inventaire", layout="wide")
 
 # ---------------------------------------------------------
 # 2️⃣ CONNEXION À LA BASE DE DONNÉES
@@ -46,11 +46,11 @@ df_inventaire = pd.DataFrame()
 
 if conn:
     try:
-        # Récupérer les noms des clients pour le filtre latéral
+        # جلب قائمة العملاء للفيلتر
         df_c = pd.read_sql("SELECT DISTINCT nom_client FROM Clients ORDER BY nom_client ASC", conn)
         clients_list += df_c['nom_client'].tolist()
         
-        # Récupérer toutes les données de l'inventaire
+        # جلب بيانات المخزون
         df_inventaire = pd.read_sql("SELECT * FROM Inventaire", conn)
     except:
         pass
@@ -62,7 +62,7 @@ if conn:
 # -------------------------
 st.sidebar.title("🔍 Filtres de recherche")
 
-# Filtre par Client (Remplace Shipment)
+# الفيلتر بسميت العميل في الجنب
 client_filtre = st.sidebar.selectbox("Filtrer par Client", options=clients_list)
 
 statut_filtre = st.sidebar.selectbox("Filtrer par Statut", options=["Tous", "En cours", "Livré", "En attente"])
@@ -76,38 +76,38 @@ if st.sidebar.button("🚪 Déconnexion"):
 # -------------------------
 st.title("📦 Gestion de l'inventaire")
 
-# 7️⃣ LOGIQUE DE FILTRAGE ET AFFICHAGE TABLEAU
+# 7️⃣ LOGIQUE DE FILTRAGE ET ORGANISATION DU TABLEAU
 if not df_inventaire.empty:
     df_affichage = df_inventaire.copy()
 
-    # Filtrage selon le choix dans la sidebar
+    # تطبيق الفلتر
     if client_filtre != "Tous les clients":
         df_affichage = df_affichage[df_affichage['client_concerne'] == client_filtre]
     
     if statut_filtre != "Tous" and 'statut' in df_affichage.columns:
         df_affichage = df_affichage[df_affichage['statut'] == statut_filtre]
 
-    # --- AJOUT DE LA COLONNE CLIENT AU DÉBUT DU TABLEAU ---
+    # --- الترتيب: العميل هو الأول قبل Shipment ---
     if 'client_concerne' in df_affichage.columns:
-        # On renomme pour l'affichage et on réorganise les colonnes
+        # تغيير الإسم للعرض وتغيير ترتيب الأعمدة
         df_affichage = df_affichage.rename(columns={'client_concerne': 'Client'})
+        
+        # وضع عمود Client في المركز الأول
         cols = ['Client'] + [c for c in df_affichage.columns if c != 'Client']
         df_affichage = df_affichage[cols]
 
     st.write(f"Affichage de **{len(df_affichage)}** lignes après filtrage.")
     
-    # Rendu du tableau (st.dataframe)
+    # عرض الجدول النهائي
     st.dataframe(df_affichage, use_container_width=True, hide_index=True)
 else:
     st.info("Aucune donnée d'inventaire disponible.")
 
 st.divider()
 
-# 8️⃣ BOUTONS D'ACTION (Bas de page)
+# 8️⃣ BOUTONS D'ACTION
 c1, c2 = st.columns(2)
 with c1:
-    if st.button("💾 Sauvegarder directement sur Excel", use_container_width=True):
-        st.success("Fichier Excel généré !")
+    st.button("💾 Sauvegarder directement sur Excel", use_container_width=True)
 with c2:
-    if st.button("📩 Télécharger une copie (Backup)", use_container_width=True):
-        st.info("Sauvegarde en cours...")
+    st.button("📩 Télécharger une copie de sauvegarde (Backup)", use_container_width=True)
